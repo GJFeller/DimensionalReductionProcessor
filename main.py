@@ -1,6 +1,7 @@
 import json
 import os
 import glob
+import numpy as np
 
 def find_index(dicts, key, value):
     class Null: pass
@@ -21,11 +22,25 @@ for file_name in list_of_files:
 dataMatrix = []
 #print(data[0]["data"][0])
 for dataRow in data:
-    print(dataRow["filename"])
     deputiesVotedList = []
     for rollCall in dataRow["data"]:
         for rollVote in rollCall['rollVotes']:
             if find_index(deputiesVotedList, 'deputyId', rollVote['deputyID']) == -1:
                 deputiesVotedList.append({'deputyId': rollVote['deputyID'], 'party': rollVote['party']})
-    print(len(deputiesVotedList))
+    deputiesVotedList = sorted(deputiesVotedList, key=lambda deputy: deputy['deputyId'])
+    rollCallMatrix = np.zeros((len(deputiesVotedList), len(dataRow['data'])))
+    for rollCallIdx, rollCall in enumerate(dataRow["data"]):
+        for rollVote in rollCall['rollVotes']:
+            deputyIdx = find_index(deputiesVotedList, 'deputyId', rollVote['deputyID'])
+            rollCallMatrix[deputyIdx][rollCallIdx] = rollVote['vote']
+    dataMatrix.append({'filename': dataRow["filename"], 'dataMatrix': rollCallMatrix, 'deputyList': deputiesVotedList})
+    #if dataRow['filename'] == "2013-1":
+    #    print(dataRow["filename"])
+    #    print(len(deputiesVotedList))
+    #    print(deputiesVotedList)
+    #    print(rollCallMatrix.shape)
+    #    print(rollCallMatrix)
+print(dataMatrix)
+    
+    
     
