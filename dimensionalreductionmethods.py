@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 from numpy import linalg as LA
 import math
@@ -22,7 +23,7 @@ class DimensionalReductionMethods(object):
 
 
     def MDS(self):
-        distanceMatrix = self.calculateDistanceMatrix()
+        distanceMatrix = self.calculateDistanceMatrix(self.dataMatrix['dataMatrix'])
         P = np.power(distanceMatrix, 2)
         identity = np.identity(len(P))
         J = np.subtract(np.identity(len(P)), np.divide(np.ones( (len(P), len(P) ) ), len(P) ) )
@@ -37,6 +38,75 @@ class DimensionalReductionMethods(object):
         #area = 2  # 0 to 15 point radii
         #plt.scatter(dataCoordTransposed[0], dataCoordTransposed[1], area, 'C1', alpha=0.5)
         #plt.show()
+    
+    def SammonMapping(self):
+        maxIter = 50
+        d = 2
+        MF = 0.4
+        originalDistanceMatrix = self.calculateDistanceMatrix(self.dataMatrix['dataMatrix'])
+        #y = self.initializeSeedVectors(d)
+        y = self.PCADataCoordinates
+        sammonDistanceMatrix = self.calculateDistanceMatrix(y)
+        error = self.errorFunction(originalDistanceMatrix, sammonDistanceMatrix)
+        print("Sammon initial error %f" % error)
+        errorPrevious = error
+        for iter in range(0, maxIter):
+            ynew = np.copy(y)
+            for p in range(0, len(originalDistanceMatrix)):
+                for q in range(0, d):
+                    firstDerivate = 0
+                    secondDerivate = 0
+                    for j in range(0, len(originalDistanceMatrix)):
+                        if p != j:
+                            dpj_ = originalDistanceMatrix[p][j]
+                            if dpj_ == 0:
+                                dpj_ = 1e-10
+                            dpj = sammonDistanceMatrix[p][j]
+                            if dpj == 0:
+                                dpj = 1e-10
+                            firstDerivate = firstDerivate + ((dpj_ - dpj)/(dpj*dpj_))*(y[p][q]-y[j][q])
+                            secondDerivate = secondDerivate + (1/dpj*dpj_)*((dpj_ - dpj) - (math.pow(y[p][q]-y[j][q], 2)/dpj)*(1 + ((dpj_-dpj)/dpj)))
+                    c = self.getNormalizationFactor(originalDistanceMatrix)
+                    firstDerivate = firstDerivate*(-2/c)
+                    secondDerivate = secondDerivate*(-2/c)
+                    ynew[p][q] = y[p][q] - MF*(firstDerivate/abs(secondDerivate))
+            y = np.copy(ynew)
+            sammonDistanceMatrix = self.calculateDistanceMatrix(y)
+            error = self.errorFunction(originalDistanceMatrix, sammonDistanceMatrix)
+            print("Sammon error in %d iteration with MF %f = %f" % (iter, MF, error))
+            print(y)
+            #if error > errorPrevious:
+            #    MF = MF * 0.2
+            #else:
+            #    MF = MF * 1.5
+            #    if MF > 0.4:
+            #        MF = 0.4
+        
+
+    def errorFunction(self, originalDistanceMatrix, sammonDistanceMatrix):
+        sumNormalizationFactor = self.getNormalizationFactor(originalDistanceMatrix)
+        sumErrorFactor = 0
+        for i in range(0, len(originalDistanceMatrix)-1):
+            for j in range(i+1, len(originalDistanceMatrix)):
+                divisor = originalDistanceMatrix[i][j]
+                if originalDistanceMatrix[i][j] == 0:
+                    divisor = 1e-10
+                #print(divisor)
+                sumErrorFactor = sumErrorFactor + (math.pow(originalDistanceMatrix[i][j] - sammonDistanceMatrix[i][j], 2) / divisor)
+        return sumErrorFactor / sumNormalizationFactor
+        
+    def getNormalizationFactor(self, originalDistanceMatrix):
+        sumNormalizationFactor = 0
+        for i in range(0, len(originalDistanceMatrix)-1):
+            for j in range(i+1, len(originalDistanceMatrix)):
+                sumNormalizationFactor = sumNormalizationFactor + originalDistanceMatrix[i][j]
+        return sumNormalizationFactor
+
+    def initializeSeedVectors(self, d):
+        deputiesCount = len(self.dataMatrix['dataMatrix'])
+        return np.random.rand(deputiesCount,d)
+        
+
 
     def getLargerEigenvectors(self, matrix, d):
         size = len(matrix)
@@ -91,13 +161,13 @@ class DimensionalReductionMethods(object):
             cov = cov + matrix[k][i] * matrix[k][j]
         return cov / (covDim - 1)
 
-    def calculateDistanceMatrix(self):
-        deputiesCount = len(self.dataMatrix['dataMatrix'])
+    def calculateDistanceMatrix(self, dataMatrix):
+        deputiesCount = len(dataMatrix)
         distanceMatrix = np.zeros((deputiesCount, deputiesCount))
         for i in range(0, deputiesCount):
             for j in range(i+1, deputiesCount):
-                v1 = self.dataMatrix['dataMatrix'][i]
-                v2 = self.dataMatrix['dataMatrix'][j]
+                v1 = dataMatrix[i]
+                v2 = dataMatrix[j]
                 distanceMatrix[i][j] = self.euclideanDistance(v1, v2);
         for i in range(1, deputiesCount):
             for j in range(0, i):

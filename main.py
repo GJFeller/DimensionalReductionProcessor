@@ -48,6 +48,7 @@ for dataRow in dataMatrix:
     #if dataRow["filename"] == "2013-1":
     semesterData = DimensionalReductionMethods(dataRow)
     semesterData.PCA()
+    semesterData.SammonMapping()
     semesterData.MDS()
     processedData.append(semesterData)
     #DimensionalReductionMethods.PCA(dataRow['dataMatrix'])
