@@ -3,12 +3,16 @@ import numpy as np
 from numpy import linalg as LA
 import math
 import matplotlib.pyplot as plt
+import json
 #import scipy
 
 class DimensionalReductionMethods(object):
 
     def __init__(self, dataMatrix):
         self.dataMatrix = dataMatrix
+        self.PCADataCoordinates = None
+        self.MDSDataCoordinates = None
+        self.SammonDataCoordinates = None
 
     def PCA(self):
         modifiedDataset = np.copy(self.meanSubtraction())
@@ -27,12 +31,12 @@ class DimensionalReductionMethods(object):
         P = np.power(distanceMatrix, 2)
         identity = np.identity(len(P))
         J = np.subtract(np.identity(len(P)), np.divide(np.ones( (len(P), len(P) ) ), len(P) ) )
-        print(J)
+        #print(J)
         B = np.divide(np.dot(J, np.dot(P, J) ),-2)
         dataVectorBase = self.getLargerEigenvectors(B, 2)
-        print(dataVectorBase)
+        #print(dataVectorBase)
         self.MDSDataCoordinates = np.dot(distanceMatrix, dataVectorBase)
-        print(self.MDSDataCoordinates)
+        #print(self.MDSDataCoordinates)
 
         #dataCoordTransposed = np.transpose(self.MDSDataCoordinates)
         #area = 2  # 0 to 15 point radii
@@ -75,6 +79,7 @@ class DimensionalReductionMethods(object):
             error = self.errorFunction(originalDistanceMatrix, sammonDistanceMatrix)
             print("Sammon error in %d iteration with MF %f = %f" % (iter, MF, error))
             print(y)
+        self.SammonDataCoordinates = y
             #if error > errorPrevious:
             #    MF = MF * 0.2
             #else:
@@ -179,3 +184,23 @@ class DimensionalReductionMethods(object):
         for i in range(0, len(v1)):
             sum = sum + math.pow(v1[i]-v2[i], 2)
         return math.sqrt(sum)
+
+    def exportCoordinatesToJSON(self):
+        if self.PCADataCoordinates is not None:
+            PCAScatterData = []
+            for i, point in enumerate(self.PCADataCoordinates):
+                PCAScatterData.append({'data': point.real.tolist(), 'party': self.dataMatrix['deputyList'][i]['party'], 'name': self.dataMatrix['deputyList'][i]['deputyId']})
+            with open('data/semesters/PCA/'+self.dataMatrix['filename']+'.json', 'w') as fp:
+                json.dump(PCAScatterData, fp)
+        if self.MDSDataCoordinates is not None:
+            MDSScatterData = []
+            for i, point in enumerate(self.MDSDataCoordinates):
+                MDSScatterData.append({'data': point.real.tolist(), 'party': self.dataMatrix['deputyList'][i]['party'], 'name': self.dataMatrix['deputyList'][i]['deputyId']})
+            with open('data/semesters/MDS/'+self.dataMatrix['filename']+'.json', 'w') as fp:
+                json.dump(MDSScatterData, fp)
+        if self.SammonDataCoordinates is not None:
+            SammonScatterData = []
+            for i, point in enumerate(self.SammonDataCoordinates):
+                SammonScatterData.append({'data': point.real.tolist(), 'party': self.dataMatrix['deputyList'][i]['party'], 'name': self.dataMatrix['deputyList'][i]['deputyId']})
+            with open('data/semesters/Sammon/'+self.dataMatrix['filename']+'.json', 'w') as fp:
+                json.dump(SammonScatterData, fp)
