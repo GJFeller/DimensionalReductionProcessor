@@ -17,8 +17,8 @@ list_of_files = glob.glob('./data/semesters/*.json')
 for file_name in list_of_files:
     file = open(file_name, 'r')
     with file as data_file:
-        if os.path.splitext(os.path.basename(file_name))[0] == "2013-1":
-            data.append({'filename': os.path.splitext(os.path.basename(file_name))[0], 'data': json.load(data_file)})
+        #if os.path.splitext(os.path.basename(file_name))[0] == "2013-1":
+        data.append({'filename': os.path.splitext(os.path.basename(file_name))[0], 'data': json.load(data_file)})
 
 
 dataMatrix = []
@@ -46,10 +46,11 @@ for dataRow in data:
 processedData = []
 for dataRow in dataMatrix:
     #if dataRow["filename"] == "2013-1":
+    print(dataRow["filename"])
     semesterData = DimensionalReductionMethods(dataRow)
     semesterData.PCA()
-    #semesterData.SammonMapping()
     semesterData.MDS()
+    semesterData.SammonMapping()
     semesterData.exportCoordinatesToJSON()
     processedData.append(semesterData)
     #DimensionalReductionMethods.PCA(dataRow['dataMatrix'])

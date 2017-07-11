@@ -4,6 +4,7 @@ from numpy import linalg as LA
 import math
 import matplotlib.pyplot as plt
 import json
+import random
 #import scipy
 
 class DimensionalReductionMethods(object):
@@ -31,10 +32,8 @@ class DimensionalReductionMethods(object):
         P = np.power(distanceMatrix, 2)
         identity = np.identity(len(P))
         J = np.subtract(np.identity(len(P)), np.divide(np.ones( (len(P), len(P) ) ), len(P) ) )
-        #print(J)
         B = np.divide(np.dot(J, np.dot(P, J) ),-2)
         dataVectorBase = self.getLargerEigenvectors(B, 2)
-        #print(dataVectorBase)
         self.MDSDataCoordinates = np.dot(distanceMatrix, dataVectorBase)
         #print(self.MDSDataCoordinates)
 
@@ -46,21 +45,23 @@ class DimensionalReductionMethods(object):
     def SammonMapping(self):
         maxIter = 50
         d = 2
-        MF = 0.4
+        MF = random.uniform(0.3, 0.4)
         originalDistanceMatrix = self.calculateDistanceMatrix(self.dataMatrix['dataMatrix'])
         #y = self.initializeSeedVectors(d)
         y = self.PCADataCoordinates
         sammonDistanceMatrix = self.calculateDistanceMatrix(y)
         error = self.errorFunction(originalDistanceMatrix, sammonDistanceMatrix)
+        c = self.getNormalizationFactor(originalDistanceMatrix)
+        error = error/c
         print("Sammon initial error %f" % error)
         errorPrevious = error
         for iter in range(0, maxIter):
-            ynew = np.copy(y)
-            for p in range(0, len(originalDistanceMatrix)):
+            ynew = np.zeros((len(y), len(y[0])))
+            for p in range(0, len(y)):
                 for q in range(0, d):
                     firstDerivate = 0
                     secondDerivate = 0
-                    for j in range(0, len(originalDistanceMatrix)):
+                    for j in range(0, len(y)):
                         if p != j:
                             dpj_ = originalDistanceMatrix[p][j]
                             if dpj_ == 0:
@@ -70,26 +71,29 @@ class DimensionalReductionMethods(object):
                                 dpj = 1e-10
                             firstDerivate = firstDerivate + ((dpj_ - dpj)/(dpj*dpj_))*(y[p][q]-y[j][q])
                             secondDerivate = secondDerivate + (1/dpj*dpj_)*((dpj_ - dpj) - (math.pow(y[p][q]-y[j][q], 2)/dpj)*(1 + ((dpj_-dpj)/dpj)))
-                    c = self.getNormalizationFactor(originalDistanceMatrix)
                     firstDerivate = firstDerivate*(-2/c)
                     secondDerivate = secondDerivate*(-2/c)
+                    if secondDerivate == 0:
+                        secondDerivate = 1e-10
                     ynew[p][q] = y[p][q] - MF*(firstDerivate/abs(secondDerivate))
             y = np.copy(ynew)
             sammonDistanceMatrix = self.calculateDistanceMatrix(y)
             error = self.errorFunction(originalDistanceMatrix, sammonDistanceMatrix)
-            print("Sammon error in %d iteration with MF %f = %f" % (iter, MF, error))
-            print(y)
+            error = error/c
+            print("Sammon error in %d iteration with MF %f = %f" % (iter+1, MF, error))
+            if error > errorPrevious:
+                MF = MF * 0.2
+            else:
+                MF = MF * 1.5
+                if MF > 0.4:
+                    MF = 0.4
+            errorPrevious = error
         self.SammonDataCoordinates = y
-            #if error > errorPrevious:
-            #    MF = MF * 0.2
-            #else:
-            #    MF = MF * 1.5
-            #    if MF > 0.4:
-            #        MF = 0.4
+            
         
 
     def errorFunction(self, originalDistanceMatrix, sammonDistanceMatrix):
-        sumNormalizationFactor = self.getNormalizationFactor(originalDistanceMatrix)
+        #sumNormalizationFactor = self.getNormalizationFactor(originalDistanceMatrix)
         sumErrorFactor = 0
         for i in range(0, len(originalDistanceMatrix)-1):
             for j in range(i+1, len(originalDistanceMatrix)):
@@ -98,7 +102,7 @@ class DimensionalReductionMethods(object):
                     divisor = 1e-10
                 #print(divisor)
                 sumErrorFactor = sumErrorFactor + (math.pow(originalDistanceMatrix[i][j] - sammonDistanceMatrix[i][j], 2) / divisor)
-        return sumErrorFactor / sumNormalizationFactor
+        return sumErrorFactor #/ sumNormalizationFactor
         
     def getNormalizationFactor(self, originalDistanceMatrix):
         sumNormalizationFactor = 0
@@ -116,7 +120,7 @@ class DimensionalReductionMethods(object):
     def getLargerEigenvectors(self, matrix, d):
         size = len(matrix)
         lambdaValues, vectors = LA.eig(matrix)
-        print(lambdaValues)
+        #print(lambdaValues)
         #print(vectors)
         vectors = np.transpose(vectors)
         largestEigenvalues = []
@@ -127,7 +131,7 @@ class DimensionalReductionMethods(object):
             largestEigenvalues.append({'lambda': lambdaValues[i], 'idx': i})
             largestEigenvalues = sorted(largestEigenvalues, key=lambda eigenval: eigenval['lambda'], reverse=True)
             largestEigenvalues = largestEigenvalues[:-1]
-        print(largestEigenvalues)
+        #print(largestEigenvalues)
         selectedEigenvectors = []
         for i in range(0, d):
             selectedEigenvectors.append(vectors[largestEigenvalues[i]['idx']])
