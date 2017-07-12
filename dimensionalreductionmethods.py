@@ -5,6 +5,7 @@ import math
 import matplotlib.pyplot as plt
 import json
 import random
+import time
 #import scipy
 
 class DimensionalReductionMethods(object):
@@ -14,12 +15,20 @@ class DimensionalReductionMethods(object):
         self.PCADataCoordinates = None
         self.MDSDataCoordinates = None
         self.SammonDataCoordinates = None
+        self.PCAError = 0
+        self.MDSError = 0
+        self.SammonError = 0
+        self.PCAExecutionTime = 0
+        self.MDSExecutionTime = 0
+        self.SammonExecutionTime = 0
 
     def PCA(self):
+        start_time = time.time()
         modifiedDataset = np.copy(self.meanSubtraction())
         covMatrix = self.calculateCovarianceMatrix(modifiedDataset)
         dataVectorBase = self.getLargerEigenvectors(covMatrix, 2)
         self.PCADataCoordinates = np.dot(modifiedDataset, dataVectorBase)
+        self.PCAExecutionTime = time.time() - start_time
         #dataCoordTransposed = np.transpose(self.PCADataCoordinates)
 
         #area = 2  # 0 to 15 point radii
@@ -28,6 +37,7 @@ class DimensionalReductionMethods(object):
 
 
     def MDS(self):
+        start_time = time.time()
         distanceMatrix = self.calculateDistanceMatrix(self.dataMatrix['dataMatrix'])
         P = np.power(distanceMatrix, 2)
         identity = np.identity(len(P))
@@ -35,6 +45,7 @@ class DimensionalReductionMethods(object):
         B = np.divide(np.dot(J, np.dot(P, J) ),-2)
         dataVectorBase = self.getLargerEigenvectors(B, 2)
         self.MDSDataCoordinates = np.dot(distanceMatrix, dataVectorBase)
+        self.MDSExecutionTime = time.time() - start_time
         #print(self.MDSDataCoordinates)
 
         #dataCoordTransposed = np.transpose(self.MDSDataCoordinates)
@@ -46,6 +57,7 @@ class DimensionalReductionMethods(object):
         maxIter = 50
         d = 2
         MF = random.uniform(0.3, 0.4)
+        start_time = time.time()
         originalDistanceMatrix = self.calculateDistanceMatrix(self.dataMatrix['dataMatrix'])
         #y = self.initializeSeedVectors(d)
         y = self.PCADataCoordinates
@@ -89,6 +101,7 @@ class DimensionalReductionMethods(object):
                     MF = 0.4
             errorPrevious = error
         self.SammonDataCoordinates = y
+        self.SammonExecutionTime = time.time() - start_time
             
         
 
@@ -208,3 +221,17 @@ class DimensionalReductionMethods(object):
                 SammonScatterData.append({'data': point.real.tolist(), 'party': self.dataMatrix['deputyList'][i]['party'], 'name': self.dataMatrix['deputyList'][i]['deputyId']})
             with open('data/semesters/Sammon/'+self.dataMatrix['filename']+'.json', 'w') as fp:
                 json.dump(SammonScatterData, fp)
+    
+    def calculateAllMethodErrors(self):
+        originalDistanceMatrix = self.calculateDistanceMatrix(self.dataMatrix['dataMatrix'])
+        c = self.getNormalizationFactor(originalDistanceMatrix)
+        if self.PCADataCoordinates is not None:
+            methodDistanceMatrix = self.calculateDistanceMatrix(self.PCADataCoordinates)
+            self.PCAError = self.errorFunction(originalDistanceMatrix, methodDistanceMatrix)/c
+        if self.MDSDataCoordinates is not None:
+            methodDistanceMatrix = self.calculateDistanceMatrix(self.MDSDataCoordinates)
+            self.MDSError = self.errorFunction(originalDistanceMatrix, methodDistanceMatrix)/c
+        if self.SammonDataCoordinates is not None:
+            methodDistanceMatrix = self.calculateDistanceMatrix(self.SammonDataCoordinates)
+            self.SammonError = self.errorFunction(originalDistanceMatrix, methodDistanceMatrix)/c
+        
